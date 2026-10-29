@@ -1,0 +1,16 @@
+{
+  "name": "iberia-trip-agenda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "dev": "wrangler dev --port 8790",
+    "deploy": "wrangler deploy",
+    "migrate": "wrangler d1 migrations apply iberia-trip-agenda --remote",
+    "migrate:local": "wrangler d1 migrations apply iberia-trip-agenda --local"
+  },
+  "devDependencies": {
+    "wrangler": "^4.90.0"
+  }
+}

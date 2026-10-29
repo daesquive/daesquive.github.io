@@ -1,0 +1,16 @@
+name = "iberia-trip-agenda"
+main = "src/worker.js"
+compatibility_date = "2026-10-29"
+
+[[services]]
+binding = "FAMILY_AUTH"
+service = "atlas-family-chat"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "iberia-trip-agenda"
+database_id = "9edc1253-0faf-4eaf-8a52-633de35d40e8"
+migrations_dir = "migrations"
+
+[dev]
+port = 8790

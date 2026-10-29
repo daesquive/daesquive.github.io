@@ -9,9 +9,11 @@
   <title>Nuestro noviembre ibérico | Viaje en familia</title>
   <script src="theme.js?v=cdbfed30f001"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23193f3c'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='40' fill='%23e8c995'%3E11%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=21eee3132923">
+  <link rel="stylesheet" href="style.css?v=aa892b375093">
   <script defer src="data.js?v=7888a45b2bdb"></script>
-  <script defer src="app.js?v=2925e863a632"></script>
+  <script defer src="sync-config.js?v=165528bf87fc"></script>
+  <script defer src="sync.js?v=0cba520eaeb7"></script>
+  <script defer src="app.js?v=5c3e1b575479"></script>
 </head>
 <body>
   <header class="hero">
@@ -32,7 +34,20 @@
   </header>
 
   <main>
+    <section class="sync-bar" aria-label="Estado del calendario compartido">
+      <p id="sync-status" role="status" aria-live="polite">Cargando el calendario compartido…</p>
+      <button id="retry-sync">Actualizar</button>
+    </section>
     <div id="storage-warning" class="notice error" role="alert" hidden></div>
+    <section id="legacy-notice" class="notice" aria-labelledby="legacy-title" hidden>
+      <h2 id="legacy-title">Planes anteriores de este navegador</h2>
+      <p id="legacy-message"></p>
+      <div class="actions">
+        <button id="share-legacy" class="primary">Compartir y combinar planes anteriores</button>
+        <button id="download-legacy">Descargar copia original</button>
+      </div>
+      <p id="legacy-error" class="error" role="alert"></p>
+    </section>
     <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
     <section class="summary" aria-label="Fechas originales del viaje; editá cada plan en el calendario">
       <div><span class="eyebrow">VUELO DE IDA / IB0244</span><strong>3 nov., 17:25 → 4 nov., 10:15</strong><small>San José → Madrid · hora local de cada aeropuerto</small></div>
@@ -80,12 +95,12 @@
       </ul></div>
       <div class="reminder-box"><h3>Recordatorios que viajan con ustedes</h3><p>Configurá un aviso anticipado en cada plan. Mientras esta página esté abierta, los avisos aparecerán aquí. Exportá al calendario del teléfono para recibir alertas con la página cerrada.</p>
       <div id="due-reminders" aria-live="polite">No hay recordatorios para este momento.</div>
-      <p class="caption">Se guarda solo en este navegador y perfil. No hay cuenta, sincronización automática ni copia en la nube. Guardá una copia JSON antes de cambiar de dispositivo o borrar datos del navegador. Los mapas en línea y las indicaciones necesitan internet.</p></div>
+      <p class="caption">El calendario es compartido: los guardados confirmados aparecen automáticamente en los demás dispositivos mientras la página está visible (aprox. cada 10 segundos). Para editar se pide la contraseña familiar, conservada solo durante esta visita. Necesitás internet para confirmar cambios; la copia del navegador es solo para consultar sin conexión. Descargá una copia JSON como respaldo privado. Los mapas en línea y las indicaciones también necesitan internet.</p></div>
     </section>
     <section id="print-itinerary" aria-label="Itinerario para imprimir"></section>
   </main>
   <footer>
-    <span>Para disfrutar el camino, sin prisas. · Noviembre de 2026 · Atlas</span>
+    <span>Para disfrutar el camino, sin prisas. · Calendario familiar compartido · Noviembre de 2026 · Atlas</span>
     <nav class="backup-tools" aria-label="Copias de seguridad">
       <button id="export-json">Guardar copia de seguridad</button>
       <button id="import-json">Importar copia</button>
@@ -118,6 +133,23 @@
       <div class="editor-actions"><button type="button" id="delete-event" class="danger">Eliminar plan</button><button type="submit" class="primary">Guardar plan</button></div>
     </form>
   </dialog>
-  <noscript><p class="notice error">Activá JavaScript para ver y editar el calendario. La aplicación no envía el itinerario a ningún servidor.</p></noscript>
+  <dialog id="auth-dialog" aria-labelledby="auth-title" aria-describedby="auth-description">
+    <form id="auth-form">
+      <h2 id="auth-title">Edición familiar</h2>
+      <p id="auth-description">Ingresá la contraseña familiar para confirmar cambios en el calendario compartido. Solo se conserva durante esta visita, nunca en el enlace ni en una copia de seguridad.</p>
+      <label>Contraseña familiar<input id="family-passphrase" type="password" autocomplete="current-password" required></label>
+      <div class="editor-actions"><button id="cancel-auth" type="button">Cancelar</button><button type="submit" class="primary">Confirmar guardado</button></div>
+    </form>
+  </dialog>
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <form id="import-form">
+      <h2 id="import-title">Importar al calendario compartido</h2>
+      <p id="import-summary"></p>
+      <p class="caption">Se aplican las diferencias con la versión que estabas viendo. Los cambios de otros dispositivos se conservan si son compatibles; si cambiaron el mismo plan, no se sobrescribe y se avisa. El límite compartido es de 1 MiB.</p>
+      <p id="import-error" class="error" role="alert"></p>
+      <div class="editor-actions"><button id="cancel-import" type="button">Cancelar</button><button type="submit" class="primary">Confirmar importación</button></div>
+    </form>
+  </dialog>
+  <noscript><p class="notice error">Activá JavaScript para ver el calendario familiar compartido. Los cambios se guardan en el servidor con contraseña familiar y necesitan internet; una copia del navegador no confirma cambios compartidos.</p></noscript>
 </body>
 </html>

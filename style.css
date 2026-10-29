@@ -10,6 +10,15 @@ input,select,textarea,.section-heading>div{min-width:0}
 .backup-tools{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
 .backup-tools button{border:0;background:transparent;padding:6px 8px;color:var(--muted);font-size:11px;font-weight:400;text-decoration:underline;text-underline-offset:3px}
 .backup-tools button:hover{color:var(--ink);background:transparent}
+.sync-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}
+.sync-bar p{margin:0;overflow-wrap:anywhere}
+.sync-bar button{flex-shrink:0;font-size:12px}
+#sync-status[data-state=offline],#sync-status[data-state=error],#sync-status[data-state=conflict]{color:#9e2d20}
+#legacy-notice h2{font-size:20px;margin-top:0}
+#legacy-notice p{font-size:13px}
+#legacy-notice .actions{display:flex;gap:8px;flex-wrap:wrap}
+button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:wait;opacity:.65}
+#auth-dialog,#import-dialog{max-width:520px}
 @media screen and (max-width:600px){
   .toolbar{display:grid;grid-template-columns:1fr 1fr}
   .toolbar button,button,.text-link,.toolbar .upload-link{min-height:44px}
@@ -60,6 +69,7 @@ input,select,textarea,.section-heading>div{min-width:0}
   :root[data-theme=dark] .text-link{color:#f2b187}
   :root[data-theme=dark] .notice{background:#392f23;border-color:#dfaa70}
   :root[data-theme=dark] .error,:root[data-theme=dark] .danger{color:#ffb3a5}
+  :root[data-theme=dark] #sync-status[data-state=offline],:root[data-theme=dark] #sync-status[data-state=error],:root[data-theme=dark] #sync-status[data-state=conflict]{color:#ffb3a5}
   :root[data-theme=dark] .danger{border-color:#a46b60}
   :root[data-theme=dark] input,:root[data-theme=dark] select,:root[data-theme=dark] textarea{background:#20332e;border-color:#566d64}
   :root[data-theme=dark] .route-map{background:#213b33}
@@ -76,4 +86,4 @@ input,select,textarea,.section-heading>div{min-width:0}
   :root[data-theme=dark] .leaflet-control-attribution a,:root[data-theme=dark] .leaflet-popup-content a{color:#f2b187}
   :root[data-theme=dark] .backup-tools button{background:transparent}
 }
-@media print{.theme-status{display:none!important}}
+@media print{.theme-status,.sync-bar,#legacy-notice{display:none!important}}
