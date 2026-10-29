@@ -18,7 +18,7 @@ input,select,textarea,.section-heading>div{min-width:0}
 #legacy-notice p{font-size:13px}
 #legacy-notice .actions{display:flex;gap:8px;flex-wrap:wrap}
 button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:wait;opacity:.65}
-#auth-dialog,#import-dialog{max-width:520px}
+#import-dialog{max-width:520px}
 @media screen and (max-width:600px){
   .toolbar{display:grid;grid-template-columns:1fr 1fr}
   .toolbar button,button,.text-link,.toolbar .upload-link{min-height:44px}

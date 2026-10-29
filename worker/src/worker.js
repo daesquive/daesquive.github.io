@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:8788"
 ]);
 const METHODS = "GET, PUT, OPTIONS";
+// Older tabs may still send the obsolete passphrase header.
 const ALLOWED_HEADERS = new Set(["content-type", "x-family-passphrase"]);
 const MAX_BYTES = 1024 * 1024;
 const encoder = new TextEncoder();
@@ -21,37 +22,6 @@ class HttpError extends Error {
 function json(body, status, headers) {
   headers.set("Content-Type", "application/json; charset=utf-8");
   return new Response(JSON.stringify(body), { status, headers });
-}
-
-async function authorize(request, env) {
-  const supplied = request.headers.get("X-Family-Passphrase");
-  if (!supplied?.trim()) {
-    throw new HttpError(401, "La clave familiar falta o es incorrecta.");
-  }
-  const unavailable = () => new HttpError(503, "No se pudo verificar la clave familiar. Intentá de nuevo más tarde.");
-  if (!env.FAMILY_AUTH || typeof env.FAMILY_AUTH.fetch !== "function") throw unavailable();
-  let response;
-  try {
-    response = await env.FAMILY_AUTH.fetch("https://family-auth.internal/api/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      redirect: "manual",
-      body: JSON.stringify({ passphrase: supplied })
-    });
-  } catch {
-    throw unavailable();
-  }
-  if (response.status === 401 || response.status === 403) {
-    throw new HttpError(401, "La clave familiar falta o es incorrecta.");
-  }
-  if (response.status !== 200) throw unavailable();
-  let verification;
-  try {
-    verification = await response.json();
-  } catch {
-    throw unavailable();
-  }
-  if (verification?.ok !== true) throw unavailable();
 }
 
 async function readJson(request) {
@@ -162,7 +132,6 @@ export default {
       if (request.method === "OPTIONS") return preflight(request, headers);
       if (request.method === "GET") return json(await readAgenda(database(env)), 200, headers);
 
-      await authorize(request, env);
       const snapshot = await readJson(request);
       const events = validateSnapshot(snapshot);
       const db = database(env);

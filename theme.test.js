@@ -77,9 +77,9 @@ test("an invalid saved preference is reported, not overwritten until a mode is c
   assert.equal(page.stored.get(KEY), "dark");
 });
 
-test("asset URLs change with their content so cached files cannot hide theme or map fixes", () => {
+test("asset URLs change with their content so cached files cannot hide application updates", () => {
   const html = readFileSync(join(__dirname, "index.html"), "utf8");
-  for (const asset of ["style.css", "theme.js", "app.js", "data.js"]) {
+  for (const asset of ["style.css", "theme.js", "app.js", "data.js", "sync.js"]) {
     const content = readFileSync(join(__dirname, asset), "utf8").replace(/\r\n/g, "\n");
     const version = createHash("sha256").update(content).digest("hex").slice(0, 12);
     const reference = html.match(new RegExp(`(?:src|href)="${asset.replace(".", "\\.")}\\?v=([a-f0-9]+)"`));

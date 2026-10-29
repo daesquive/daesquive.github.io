@@ -33,12 +33,12 @@ function server(events = sample()) {
       assert.equal(options.cache, "no-store");
       assert.equal(options.credentials, "omit");
       assert.equal(options.redirect, "error");
+      assert.equal(options.headers["X-Family-Passphrase"], undefined);
       requests.push({ method: options.method, body: options.body });
       if (options.method === "GET") {
-        assert.equal(options.headers["X-Family-Passphrase"], undefined);
         return reply(200, current);
       }
-      assert.equal(options.headers["X-Family-Passphrase"], "unit-test-credential");
+      assert.equal(options.headers["Content-Type"], "application/json");
       const body = JSON.parse(options.body);
       Trip.validateEvents(body.events);
       if (body.revision !== current.revision) return reply(409, { error: "El calendario cambió.", current });
@@ -50,11 +50,11 @@ function server(events = sample()) {
 function client(api, storage = memory(), options = {}) {
   return createClient({
     url: endpoint, storage, fetch: api.fetch.bind(api),
-    getPassphrase: async () => "unit-test-credential", refreshFloorMs: 0, ...options
+    refreshFloorMs: 0, ...options
   });
 }
 
-test("separate browser stores see canonical additions, edits, completion and deletion without imports", async () => {
+test("separate browser stores share additions, edits, completion and deletion without passwords or imports", async () => {
   const api = server(), desktopStorage = memory(), mobileStorage = memory();
   const desktop = client(api, desktopStorage), mobile = client(api, mobileStorage);
   await Promise.all([desktop.refresh(), mobile.refresh()]);
@@ -153,15 +153,15 @@ test("a stale refresh response cannot roll back a newer confirmed save or its st
 });
 
 test("polling is coalesced and throttled, and saves block duplicate writes and new background refreshes", async () => {
-  const api = server(), delayed = deferred(), authStarted = deferred(), auth = deferred();
+  const api = server(), delayed = deferred(), writeStarted = deferred(), writeResponse = deferred();
   let reads = 0;
   const page = client(api, memory(), {
     refreshFloorMs: 60000,
     fetch: async (url, options) => {
       if (options.method === "GET" && ++reads === 1) return delayed.promise;
+      if (options.method === "PUT") { writeStarted.resolve(); await writeResponse.promise; }
       return api.fetch(url, options);
-    },
-    getPassphrase: () => { authStarted.resolve(); return auth.promise; }
+    }
   });
   const one = page.refresh(), two = page.refresh(), three = page.refresh();
   assert.equal(one, two);
@@ -173,12 +173,12 @@ test("polling is coalesced and throttled, and saves block duplicate writes and n
   assert.equal(reads, 1);
   const base = page.getSnapshot(), draft = [...base.events, plan("one-submit")];
   const saving = page.save(base, draft);
-  await authStarted.promise;
+  await writeStarted.promise;
   assert.equal(page.getState().saving, true);
   await page.refresh({ force: true });
   assert.equal(reads, 2);
   await assert.rejects(page.save(base, draft), { code: "busy" });
-  auth.resolve("unit-test-credential");
+  writeResponse.resolve();
   await saving;
   assert.equal(api.current.events.filter(event => event.id === "one-submit").length, 1);
 });
@@ -206,9 +206,8 @@ test("retrying a save after a lost response confirms the same stable event inste
 
 test("independent revision races have a bounded retry count and preserve the latest server state", async () => {
   const api = server();
-  let writes = 0, prompts = 0;
+  let writes = 0;
   const page = client(api, memory(), {
-    getPassphrase: async () => { prompts++; return "unit-test-credential"; },
     fetch: async (url, options) => {
       if (options.method === "PUT") api.update(events => [...events, plan(`racing-${++writes}`)]);
       return api.fetch(url, options);
@@ -218,7 +217,6 @@ test("independent revision races have a bounded retry count and preserve the lat
   const base = page.getSnapshot();
   await assert.rejects(page.save(base, [...base.events, plan("not-yet-saved")]), { code: "busy" });
   assert.equal(writes, 3);
-  assert.equal(prompts, 1);
   assert.deepEqual(page.getSnapshot(), api.current);
   assert.equal(api.current.events.some(event => event.id === "not-yet-saved"), false);
 });
@@ -244,47 +242,29 @@ test("a same-event conflict on the last allowed revision race is still reported 
   assert.equal(page.getSnapshot().events[0].title, "Último cambio remoto");
 });
 
-test("HTTP errors never claim a shared save and authentication failure clears the remembered credential", async t => {
+test("HTTP errors never claim a shared save and preserve the draft", async t => {
   for (const status of [400, 401, 413, 503, 500]) {
     await t.test(`HTTP ${status}`, async () => {
       const api = server();
-      let unauthorized = 0;
       const page = client(api, memory(), {
-        onUnauthorized: () => { unauthorized++; },
         fetch: (url, options) => options.method === "PUT" ? reply(status, { error: "No disponible" }) : api.fetch(url, options)
       });
       await page.refresh();
       const base = page.getSnapshot(), draft = [...base.events, plan("rejected")];
-      await assert.rejects(page.save(base, draft), { status });
+      await assert.rejects(page.save(base, draft), { status, code: "http" });
       assert.deepEqual(page.getSnapshot(), base);
       assert.deepEqual(api.current, base);
       assert.equal(page.getState().saving, false);
       assert.equal(page.getState().status, "error");
-      assert.equal(unauthorized, status === 401 ? 1 : 0);
       assert.equal(draft.at(-1).id, "rejected");
     });
   }
 });
 
-test("cancelling password entry leaves the draft available for a later successful save", async () => {
-  const api = server();
-  let cancel = true;
-  const page = client(api, memory(), { getPassphrase: async () => cancel ? null : "unit-test-credential" });
-  await page.refresh();
-  const base = page.getSnapshot(), draft = [...base.events, plan("cancelled-then-saved")];
-  await assert.rejects(page.save(base, draft), { code: "cancelled" });
-  assert.equal(api.requests.filter(request => request.method === "PUT").length, 0);
-  assert.deepEqual(page.getSnapshot(), base);
-  cancel = false;
-  await page.save(base, draft);
-  assert.equal(api.current.events.at(-1).id, "cancelled-then-saved");
-});
-
 test("offline reads retain only a labeled cache and offline edits cannot be accepted as shared saves", async () => {
   const cached = snapshot(sample(), 7), storage = memory([[CACHE_KEY, JSON.stringify(cached)]]);
   const page = createClient({
-    url: endpoint, storage, fetch: async () => { throw new TypeError("offline"); },
-    getPassphrase: async () => { assert.fail("offline GET must fail before asking for a password"); }
+    url: endpoint, storage, fetch: async () => { throw new TypeError("offline"); }
   });
   assert.equal(page.getState().source, "cache");
   await assert.rejects(page.refresh(), { code: "network" });
@@ -390,11 +370,11 @@ test("failed local cache writes cannot turn a confirmed shared save into failure
   assert.equal(storage.getItem(LEGACY_KEY), original);
 });
 
-test("untouched Spanish or migrated English seed backups require no write or password", async t => {
+test("untouched Spanish or migrated English seed backups require no write", async t => {
   for (const backup of [{ version: 1, language: "es", events: Trip.SEED }, { version: 1, events: Trip.LEGACY_SEED }]) {
     await t.test(backup.language || "legacy English", async () => {
       const raw = JSON.stringify(backup, null, 2) + "\n", storage = memory([[LEGACY_KEY, raw]]), api = server(Trip.SEED);
-      const page = client(api, storage, { getPassphrase: async () => { assert.fail("no edits to share"); } });
+      const page = client(api, storage);
       await page.ready();
       assert.equal(page.getState().legacy.hasChanges, false);
       await page.refresh();
@@ -406,7 +386,7 @@ test("untouched Spanish or migrated English seed backups require no write or pas
   }
 });
 
-test("authorized legacy migration merges real additions, edits and deletions without erasing remote changes", async () => {
+test("explicit legacy migration merges real additions, edits and deletions without erasing remote changes", async () => {
   const old = clone(Trip.LEGACY_SEED);
   old[0].title = "Mi taxi particular";
   old[0].time = "12:45";
@@ -418,15 +398,14 @@ test("authorized legacy migration merges real additions, edits and deletions wit
   remote[2].notes = "Nota remota nueva";
   remote.push(plan("other-device-addition"));
   const api = server(remote);
-  let prompts = 0;
-  const page = client(api, storage, { getPassphrase: async () => { prompts++; return "unit-test-credential"; } });
+  const page = client(api, storage);
   await page.ready();
   await page.refresh();
-  assert.equal(prompts, 0);
+  assert.equal(api.requests.filter(request => request.method === "PUT").length, 0);
   assert.equal(page.getState().legacy.hasChanges, true);
   assert.equal(api.current.events[0].title, Trip.SEED[0].title);
   await page.shareLegacy();
-  assert.equal(prompts, 1);
+  assert.equal(api.requests.filter(request => request.method === "PUT").length, 1);
   assert.equal(api.current.events.find(event => event.id === Trip.SEED[0].id).title, "Mi taxi particular");
   assert.equal(api.current.events.find(event => event.id === Trip.SEED[0].id).notes, Trip.SEED[0].notes);
   assert.equal(api.current.events.some(event => event.id === Trip.SEED[1].id), false);
@@ -438,7 +417,7 @@ test("authorized legacy migration merges real additions, edits and deletions wit
   assert.equal(page.getState().legacy.migrated, true);
 
   api.update(events => events.map(event => event.id === Trip.SEED[0].id ? { ...event, title: "Cambio familiar posterior" } : event));
-  const reopened = client(api, storage, { getPassphrase: async () => { assert.fail("an exact backup must not be replayed"); } });
+  const reopened = client(api, storage);
   await reopened.ready();
   assert.equal(reopened.getState().legacy.migrated, true);
   const writes = api.requests.filter(request => request.method === "PUT").length;

@@ -8,7 +8,6 @@ import worker from "./src/worker.js";
 
 const otherWorker = (await import("./src/worker.js?independent-isolate")).default;
 const migration = readFileSync(new URL("./migrations/0001_agenda.sql", import.meta.url), "utf8");
-const TEST_KEY = "synthetic-test-key-not-a-real-credential";
 const MAX_BYTES = 1024 * 1024;
 const snapshot = (revision, events) => ({ version: 1, language: "es", revision, events });
 const event = (id, changes = {}) => ({
@@ -52,35 +51,11 @@ function sqliteBinding(sqlite, beforeExecute = () => {}) {
   return { prepare: sql => statement(sql) };
 }
 
-function strictVerifier({ status = 200, reply = { ok: true }, throws = false } = {}) {
-  return {
-    calls: 0,
-    async fetch(input, init) {
-      this.calls++;
-      const request = new Request(input, init);
-      assert.equal(request.url, "https://family-auth.internal/api/verify");
-      assert.equal(request.method, "POST");
-      assert.equal(request.redirect, "manual");
-      assert.deepEqual([...request.headers.keys()], ["content-type"]);
-      assert.equal(request.headers.get("Content-Type"), "application/json");
-      const body = await request.json();
-      assert.deepEqual(Object.keys(body), ["passphrase"]);
-      assert.equal(typeof body.passphrase, "string");
-      if (throws) throw new Error("Private verifier diagnostics");
-      if (body.passphrase !== TEST_KEY) return Response.json({ error: "No" }, { status: 401 });
-      return new Response(
-        [204, 304].includes(status) ? null : typeof reply === "string" ? reply : JSON.stringify(reply),
-        { status, headers: { "Content-Type": "application/json" } }
-      );
-    }
-  };
-}
-
 function setup(t, { migrated = true } = {}) {
   const sqlite = new DatabaseSync(":memory:");
   if (migrated) sqlite.exec(migration);
   t.after(() => sqlite.close());
-  const env = { DB: sqliteBinding(sqlite), FAMILY_AUTH: strictVerifier() };
+  const env = { DB: sqliteBinding(sqlite) };
   return { sqlite, env };
 }
 
@@ -91,10 +66,9 @@ function quietErrors(t) {
 }
 
 async function call(env, options = {}) {
-  const { method = "GET", path = "/api/agenda", origin, key, handler = worker } = options;
+  const { method = "GET", path = "/api/agenda", origin, handler = worker } = options;
   const headers = new Headers(options.headers);
   if (origin !== undefined) headers.set("Origin", origin);
-  if (key !== undefined) headers.set("X-Family-Passphrase", key);
   let body = options.body;
   if (body !== undefined) {
     if (typeof body !== "string" && !(body instanceof Uint8Array) && !(body instanceof ReadableStream)) {
@@ -118,7 +92,7 @@ async function call(env, options = {}) {
 }
 
 function put(env, revision, events, options = {}) {
-  return call(env, { method: "PUT", key: TEST_KEY, body: snapshot(revision, events), ...options });
+  return call(env, { method: "PUT", body: snapshot(revision, events), ...options });
 }
 
 function stored(sqlite) {
@@ -128,7 +102,6 @@ function stored(sqlite) {
 
 test("concurrent first reads seed one durable singleton without requiring authentication", async t => {
   const { sqlite, env } = setup(t);
-  delete env.FAMILY_AUTH;
   const results = await Promise.all([call(env), call(env, { handler: otherWorker }), call(env)]);
   for (const { response, data } of results) {
     assert.equal(response.status, 200);
@@ -142,7 +115,7 @@ test("concurrent first reads seed one durable singleton without requiring authen
 
 test("independent clients share added, edited, deleted and empty snapshots without reseeding", async t => {
   const { sqlite, env } = setup(t);
-  const otherEnv = { DB: sqliteBinding(sqlite), FAMILY_AUTH: strictVerifier() };
+  const otherEnv = { DB: sqliteBinding(sqlite) };
   const first = event("first");
   const second = event("second");
   const edits = [
@@ -165,7 +138,7 @@ test("independent clients share added, edited, deleted and empty snapshots witho
   assert.equal(sqlite.prepare("SELECT COUNT(*) AS count FROM agenda").get().count, 1);
 });
 
-test("an authenticated first write initializes and saves instead of requiring a prior GET", async t => {
+test("a password-free first write initializes and saves instead of requiring a prior GET", async t => {
   const { sqlite, env } = setup(t);
   const result = await put(env, 0, [event("first-write")]);
   assert.equal(result.response.status, 200);
@@ -175,7 +148,7 @@ test("an authenticated first write initializes and saves instead of requiring a 
 
 test("atomic compare-and-swap permits only one concurrent writer and returns the winner on conflicts", async t => {
   const { sqlite, env } = setup(t);
-  const otherEnv = { DB: sqliteBinding(sqlite), FAMILY_AUTH: strictVerifier() };
+  const otherEnv = { DB: sqliteBinding(sqlite) };
   const results = await Promise.all([
     put(env, 0, [event("client-a")]),
     put(otherEnv, 0, [event("client-b")], { handler: otherWorker })
@@ -217,7 +190,7 @@ test("invalid envelopes and events never replace or partially edit persisted dat
     ].map(change => snapshot(1, [event("valid", change)]))
   ];
   for (const body of bad) {
-    const result = await call(env, { method: "PUT", key: TEST_KEY, body });
+    const result = await call(env, { method: "PUT", body });
     assert.equal(result.response.status, 400);
     assert.deepEqual(stored(sqlite), baseline);
   }
@@ -226,63 +199,30 @@ test("invalid envelopes and events never replace or partially edit persisted dat
 test("invalid requests do not even initialize an absent agenda", async t => {
   const { sqlite, env } = setup(t);
   for (const body of ["{", snapshot(0, [{}]), new Uint8Array([0xff])]) {
-    const result = await call(env, { method: "PUT", key: TEST_KEY, body });
+    const result = await call(env, { method: "PUT", body });
     assert.equal(result.response.status, 400);
     assert.equal(stored(sqlite), null);
   }
-  const missing = await call(env, { method: "PUT", key: TEST_KEY });
+  const missing = await call(env, { method: "PUT" });
   assert.equal(missing.response.status, 400);
   assert.equal(stored(sqlite), null);
 });
 
-test("write keys are forwarded only to the bound verifier and missing or incorrect keys cannot write", async t => {
+test("writes need no password or family service, including when older clients send an obsolete header", async t => {
   const { sqlite, env } = setup(t);
-  for (const key of [undefined, "", "   ", "incorrect-test-key", `${TEST_KEY}-extra`]) {
-    const result = await put(env, 0, [event("auth")], { key });
-    assert.equal(result.response.status, 401);
-    assert.equal(stored(sqlite), null);
+  for (const [revision, legacyValue] of [undefined, "", "obsolete-client-value"].entries()) {
+    const result = await put(env, revision, [event("public-edit", { title: `Cambio ${revision}` })], {
+      origin: "https://daesquive.github.io",
+      headers: legacyValue === undefined ? {} : { "X-Family-Passphrase": legacyValue }
+    });
+    assert.equal(result.response.status, 200);
+    assert.equal(result.data.revision, revision + 1);
+    assert.deepEqual(stored(sqlite), result.data);
   }
-  assert.equal(env.FAMILY_AUTH.calls, 2);
-  const success = await put(env, 0, [event("auth")]);
-  assert.equal(success.response.status, 200);
-  assert.equal(env.FAMILY_AUTH.calls, 3);
 });
 
-test("missing and broken service bindings fail closed without trusting a separate secret", async t => {
-  const { sqlite, env } = setup(t);
-  const logs = quietErrors(t);
-  for (const binding of [undefined, {}, { fetch: "not-a-function" }]) {
-    const result = await put({ ...env, FAMILY_AUTH: binding, FAMILY_PASSPHRASE: TEST_KEY }, 0, [event("binding")]);
-    assert.equal(result.response.status, 503);
-    assert.equal(stored(sqlite), null);
-  }
-  assert.equal(logs.length, 3);
-});
-
-test("verifier denial maps to 401 and every other verification failure is an explicit 503", async t => {
-  const { sqlite, env } = setup(t);
-  const logs = quietErrors(t);
-  const cases = [
-    ...[401, 403].map(status => [{ status, reply: { error: "Private upstream detail" } }, 401]),
-    ...[201, 204, 302, 400, 429, 500, 503].map(status => [{ status }, 503]),
-    ...["not-json", "", { ok: false }, { ok: "true" }, {}, null, [], true].map(reply => [{ reply }, 503]),
-    [{ throws: true }, 503]
-  ];
-  for (const [behavior, expectedStatus] of cases) {
-    const auth = strictVerifier(behavior);
-    const result = await put({ ...env, FAMILY_AUTH: auth }, 0, [event("verifier")]);
-    assert.equal(result.response.status, expectedStatus);
-    assert.equal(auth.calls, 1);
-    assert.equal(stored(sqlite), null);
-    assert.doesNotMatch(result.data.error, /Private|diagnostics/);
-  }
-  assert.ok(logs.length > 0);
-  assert.ok(logs.every(args => isDeepStrictEqual(args, ["[iberia-trip-agenda] Servicio de agenda no disponible."])));
-});
-
-test("allowed origins receive exact CORS headers and GET needs neither a key nor verifier", async t => {
+test("allowed origins receive exact CORS headers", async t => {
   const { env } = setup(t);
-  delete env.FAMILY_AUTH;
   for (const origin of ["https://daesquive.github.io", "http://127.0.0.1:8788", "http://localhost:8788"]) {
     const result = await call(env, { origin });
     assert.equal(result.response.status, 200);
@@ -293,7 +233,7 @@ test("allowed origins receive exact CORS headers and GET needs neither a key nor
   assert.equal(noOrigin.response.headers.get("Access-Control-Allow-Origin"), null);
 });
 
-test("unexpected and opaque origins are rejected before any read, initialization or verifier call", async t => {
+test("unexpected and opaque origins are rejected before agenda initialization or mutation", async t => {
   const { sqlite, env } = setup(t);
   for (const origin of [
     "https://example.com", "null", "https://daesquive.github.io.attacker.test",
@@ -301,14 +241,13 @@ test("unexpected and opaque origins are rejected before any read, initialization
   ]) {
     for (const method of ["GET", "PUT", "OPTIONS"]) {
       const result = await call(env, {
-        origin, method, key: TEST_KEY, ...(method === "PUT" ? { body: snapshot(0, [event("origin")]) } : {})
+        origin, method, ...(method === "PUT" ? { body: snapshot(0, [event("origin")]) } : {})
       });
       assert.equal(result.response.status, 403);
       assert.equal(result.response.headers.get("Access-Control-Allow-Origin"), null);
     }
   }
   assert.equal(stored(sqlite), null);
-  assert.equal(env.FAMILY_AUTH.calls, 0);
 });
 
 test("preflight permits only agreed methods and headers, without requiring storage or auth", async () => {
@@ -335,12 +274,12 @@ test("preflight permits only agreed methods and headers, without requiring stora
   assert.equal(badHeader.response.status, 403);
 });
 
-test("server-side no-Origin writes still authenticate, and unsupported routes and methods are explicit", async t => {
+test("server-side no-Origin writes need no password, and unsupported routes and methods are explicit", async t => {
   const { env } = setup(t);
   const written = await put(env, 0, [event("server-side")]);
   assert.equal(written.response.status, 200);
   assert.equal(written.response.headers.get("Access-Control-Allow-Origin"), null);
-  assert.equal((await put(env, 1, [], { key: undefined })).response.status, 401);
+  assert.equal((await put(env, 1, [])).response.status, 200);
   assert.equal((await call(env, { path: "/missing" })).response.status, 404);
   for (const method of ["POST", "DELETE", "PATCH"]) {
     const result = await call(env, { method });
@@ -360,7 +299,7 @@ test("oversized streamed and declared bodies are cancelled before any agenda mut
     },
     cancel() { cancelled = true; }
   }, { highWaterMark: 0 });
-  const result = await call(env, { method: "PUT", key: TEST_KEY, body, headers: { "Content-Length": "1" } });
+  const result = await call(env, { method: "PUT", body, headers: { "Content-Length": "1" } });
   assert.equal(result.response.status, 413);
   assert.equal(cancelled, true);
   assert.equal(pulled, 3);
@@ -373,7 +312,7 @@ test("oversized streamed and declared bodies are cancelled before any agenda mut
     cancel() { cancelled = true; }
   }, { highWaterMark: 0 });
   const rejected = await call(env, {
-    method: "PUT", key: TEST_KEY, body: declared, headers: { "Content-Length": String(MAX_BYTES + 1) }
+    method: "PUT", body: declared, headers: { "Content-Length": String(MAX_BYTES + 1) }
   });
   assert.equal(rejected.response.status, 413);
   assert.equal(cancelled, true);
@@ -394,12 +333,12 @@ test("the byte limit accepts exactly 1 MiB, preserves split UTF-8, and rejects o
       else controller.close();
     }
   });
-  const accepted = await call(env, { method: "PUT", key: TEST_KEY, body });
+  const accepted = await call(env, { method: "PUT", body });
   assert.equal(accepted.response.status, 200);
   assert.deepEqual(accepted.data, snapshot(1, events));
   const baseline = stored(sqlite);
 
-  const oversized = await call(env, { method: "PUT", key: TEST_KEY, body: "á".repeat(MAX_BYTES / 2 + 1) });
+  const oversized = await call(env, { method: "PUT", body: "á".repeat(MAX_BYTES / 2 + 1) });
   assert.equal(oversized.response.status, 413);
   assert.deepEqual(stored(sqlite), baseline);
 
@@ -408,7 +347,7 @@ test("the byte limit accepts exactly 1 MiB, preserves split UTF-8, and rejects o
   );
   const compact = `{"version":1,"language":"es","revision":1,"events":[${expandedEvent}]}`;
   assert.ok(Buffer.byteLength(compact) < MAX_BYTES);
-  const expanded = await call(env, { method: "PUT", key: TEST_KEY, body: compact });
+  const expanded = await call(env, { method: "PUT", body: compact });
   assert.equal(expanded.response.status, 413);
   assert.deepEqual(stored(sqlite), baseline);
 });
@@ -418,7 +357,7 @@ test("a failed request stream returns 400 and never initializes or partially wri
   const body = new ReadableStream({
     pull(controller) { controller.error(new Error("Private stream detail")); }
   });
-  const result = await call(env, { method: "PUT", key: TEST_KEY, body });
+  const result = await call(env, { method: "PUT", body });
   assert.equal(result.response.status, 400);
   assert.doesNotMatch(result.data.error, /Private/);
   assert.equal(stored(sqlite), null);

@@ -6,21 +6,16 @@
   let selectedDate = "2026-11-04";
   let activeStop = "madrid";
   let leafletMap = null;
+  let mapLoading = false;
   let markers = [];
   let events = [];
   let editorBase = null;
   let importDraft = null;
-  let familyPassphrase = null;
-  let passwordRequest = null;
   let eventSignature = "";
   let lastSaving = false;
   const dismissed = new Set();
   const clone = value => JSON.parse(JSON.stringify(value));
-  const sync = TripSync.createClient({
-    url: globalThis.TRIP_SYNC_URL,
-    getPassphrase: requestPassphrase,
-    onUnauthorized: () => { familyPassphrase = null; }
-  });
+  const sync = TripSync.createClient({ url: globalThis.TRIP_SYNC_URL });
   const scrollBehavior = matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
   const text = (tag, value, className) => {
     const el = document.createElement(tag);
@@ -29,26 +24,6 @@
     return el;
   };
   function feedback(message) { $("feedback").textContent = message; }
-  function requestPassphrase() {
-    if (familyPassphrase) return Promise.resolve(familyPassphrase);
-    if (passwordRequest) return passwordRequest.promise;
-    let resolve;
-    const promise = new Promise(done => { resolve = done; });
-    passwordRequest = { promise, resolve };
-    $("family-passphrase").value = "";
-    $("auth-dialog").showModal();
-    $("family-passphrase").focus();
-    return promise;
-  }
-  function finishPassword(value) {
-    if (!passwordRequest) return;
-    const { resolve } = passwordRequest;
-    passwordRequest = null;
-    familyPassphrase = value || null;
-    $("family-passphrase").value = "";
-    $("auth-dialog").close();
-    resolve(familyPassphrase);
-  }
   function applySyncState(state) {
     $("sync-status").textContent = state.message;
     $("sync-status").dataset.state = state.status;
@@ -235,35 +210,6 @@
     }
   }
   function renderRoute() {
-    const ns = "http://www.w3.org/2000/svg";
-    const svgNode = (tag, attrs = {}) => {
-      const el = document.createElementNS(ns, tag);
-      for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
-      return el;
-    };
-    const point = s => [Math.round((s.lon + 10) * 78), Math.round((41.5 - s.lat) * 52)];
-    const svg = svgNode("svg", { viewBox: "0 0 650 350", role: "group", "aria-label": "Ruta esquemática entre ciudades, no es un mapa de carreteras" });
-    const sea = svgNode("path", { d: "M0 0H120L103 65 84 100 59 145 79 175 60 214 98 252 146 248 190 288 280 322 650 322V350H0Z", class: "water" });
-    svg.append(sea);
-    const caption = svgNode("text", { x: 15, y: 310 });
-    caption.textContent = "ATLÁNTICO"; svg.append(caption);
-    const route = [...STOPS, STOPS[0]].map(point).map(p => p.join(",")).join(" ");
-    svg.append(svgNode("polyline", { points: route, fill: "none", stroke: "#b76b3d", "stroke-width": 2, "stroke-dasharray": "5 4" }));
-    const offsets = { madrid: [12, -14], alcala: [12, 0], toledo: [10, 21], granada: [10, -8], malaga: [10, 22], gibraltar: [-112, 14] };
-    STOPS.forEach((s, i) => {
-      const [x, y] = point(s);
-      const g = svgNode("g", { class: `city${activeStop === s.id ? " active" : ""}`, tabindex: 0, role: "button", "aria-label": `${i + 1}. ${s.name}, ver itinerario`, "aria-pressed": String(activeStop === s.id) });
-      const title = svgNode("title"); title.textContent = s.name;
-      const dot = svgNode("circle", { cx: x, cy: y, r: 10 });
-      const num = svgNode("text", { x, y: y + 4, "text-anchor": "middle" }); num.textContent = i + 1;
-      const [dx, dy] = offsets[s.id] || [14, 3];
-      const label = svgNode("text", { x: x + dx, y: y + dy }); label.textContent = s.name;
-      g.append(title, dot, num, label);
-      g.addEventListener("click", () => chooseStop(s));
-      g.addEventListener("keydown", event => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); chooseStop(s); } });
-      svg.append(g);
-    });
-    $("route-map").replaceChildren(svg);
     $("route-stops").replaceChildren();
     for (const [i, s] of STOPS.entries()) {
       const button = text("button", `${i + 1}. ${s.name}`, s.id === activeStop ? "active" : "");
@@ -324,13 +270,6 @@
   for (const id of ["event-dialog", "import-dialog"]) {
     $(id).addEventListener("cancel", event => { if (sync.getState().saving) event.preventDefault(); });
   }
-  $("auth-form").addEventListener("submit", event => {
-    event.preventDefault();
-    finishPassword($("family-passphrase").value);
-  });
-  $("cancel-auth").addEventListener("click", () => finishPassword(null));
-  $("auth-dialog").addEventListener("cancel", event => { event.preventDefault(); finishPassword(null); });
-  $("auth-dialog").addEventListener("close", () => { if (passwordRequest) finishPassword(null); });
   form.elements.namedItem("date").addEventListener("change", event => {
     const end = form.elements.namedItem("endDate");
     if (end.value < event.target.value) end.value = event.target.value;
@@ -440,15 +379,14 @@
     } catch (error) { feedback(`No se pudo exportar el calendario: ${error.message}`); }
   });
   $("print").addEventListener("click", () => window.print());
-  $("toggle-map").addEventListener("click", async () => {
-    const button = $("toggle-map");
-    if (leafletMap) {
-      $("street-map").hidden = !$("street-map").hidden;
-      button.textContent = $("street-map").hidden ? "Mostrar mapa en línea" : "Ocultar mapa en línea";
-      if (!$("street-map").hidden) leafletMap.invalidateSize();
-      return;
-    }
-    button.disabled = true; button.textContent = "Cargando mapa...";
+  function mapFeedback(message, error = false) {
+    $("map-status").textContent = message;
+    $("map-status").classList.toggle("error", error);
+  }
+  async function loadOnlineMap() {
+    if (leafletMap || mapLoading) return;
+    mapLoading = true;
+    mapFeedback("Cargando el mapa en línea…");
     try {
       const styleReady = new Promise((resolve, reject) => {
         if ($("leaflet-css")?.sheet) { resolve(); return; }
@@ -480,14 +418,14 @@
       let tileErrorShown = false;
       tiles.on("loading", () => {
         tileErrorShown = false;
-        feedback("Cargando las imágenes del mapa...");
+        mapFeedback("Cargando las imágenes del mapa...");
       });
       tiles.on("tileerror", () => {
-        if (!tileErrorShown) feedback("No se pudieron cargar algunas imágenes del mapa (posible bloqueo del proveedor). El esquema sin conexión y los enlaces de indicaciones siguen disponibles.");
+        if (!tileErrorShown) mapFeedback("No se pudieron cargar algunas imágenes del mapa (posible bloqueo del proveedor). Revisá la conexión; los enlaces de indicaciones siguen disponibles.", true);
         tileErrorShown = true;
       });
       tiles.on("load", () => {
-        if (!tileErrorShown) feedback("Mapa cargado. Las líneas son esquemáticas, no rutas calculadas por carretera.");
+        if (!tileErrorShown) mapFeedback("Mapa cargado. Las líneas son esquemáticas, no rutas calculadas por carretera.");
       });
       const coordinates = [...STOPS, STOPS[0]].map(s => [s.lat, s.lon]);
       L.polyline(coordinates, { color: "#b76b3d", dashArray: "5 5" }).addTo(leafletMap);
@@ -499,14 +437,12 @@
       });
       leafletMap.fitBounds(coordinates, { padding: [20, 20] });
       tiles.addTo(leafletMap);
-      button.textContent = "Ocultar mapa en línea";
     } catch (error) {
       if (leafletMap) { leafletMap.remove(); leafletMap = null; markers = []; }
       $("street-map").hidden = true;
-      button.textContent = "Reintentar mapa en línea";
-      feedback(`${error.message} El mapa sin conexión y el calendario siguen funcionando.`);
-    } finally { button.disabled = false; }
-  });
+      mapFeedback(`${error.message} Revisá la conexión y recargá la página para reintentar. El calendario y los enlaces de indicaciones siguen disponibles.`, true);
+    } finally { mapLoading = false; }
+  }
   function refreshShared(force = false) {
     if (!force && document.visibilityState === "hidden") return;
     if (navigator.onLine === false) { sync.markOffline(); return; }
@@ -514,7 +450,11 @@
   }
   $("retry-sync").addEventListener("click", () => refreshShared(true));
   window.addEventListener("focus", () => refreshShared());
-  window.addEventListener("online", () => refreshShared());
+  window.addEventListener("online", () => {
+    refreshShared();
+    if (leafletMap) leafletMap.eachLayer(layer => { if (layer instanceof L.TileLayer) layer.redraw(); });
+    else loadOnlineMap();
+  });
   window.addEventListener("offline", () => sync.markOffline());
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshShared(); });
   window.addEventListener("storage", event => {
@@ -531,6 +471,7 @@
   render();
   sync.subscribe(applySyncState);
   refreshShared(true);
+  loadOnlineMap();
   if (matchMedia("(max-width: 600px)").matches) $("view-toggle").click();
   setInterval(refreshShared, 10000);
   setInterval(renderReminders, 30000);

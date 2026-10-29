@@ -197,15 +197,12 @@
       emit();
       return canonical;
     }
-    async function request(method, body, passphrase) {
+    async function request(method, body) {
       if (configError) throw configError;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), options.timeoutMs || 15000);
       const headers = { Accept: "application/json" };
-      if (method === "PUT") {
-        headers["Content-Type"] = "application/json";
-        headers["X-Family-Passphrase"] = passphrase;
-      }
+      if (method === "PUT") headers["Content-Type"] = "application/json";
       try {
         const response = await fetcher(endpoint, {
           method, headers, body, cache: "no-store", credentials: "omit", redirect: "error", signal: controller.signal
@@ -229,11 +226,10 @@
     function httpError(response) {
       const messages = {
         400: "El servidor rechazó los datos. Revisá los planes antes de reintentar; no se confirmó ningún cambio.",
-        401: "La contraseña familiar no es correcta. Volvé a guardar para ingresarla de nuevo; tu texto se conserva.",
         413: "La copia supera el límite compartido de 1 MiB. Reducí las notas o la cantidad de planes antes de reintentar.",
         503: "El calendario compartido no está disponible o todavía no está configurado. No se confirmó el guardado; intentá más tarde."
       };
-      return new SyncError(response.status === 401 ? "auth" : "http", messages[response.status] || `El servidor no pudo completar la operación (HTTP ${response.status}). No se confirmó ningún cambio.`, { status: response.status });
+      return new SyncError("http", messages[response.status] || `El servidor no pudo completar la operación (HTTP ${response.status}). No se confirmó ningún cambio.`, { status: response.status });
     }
     async function getLatest() {
       const response = await request("GET");
@@ -282,7 +278,6 @@
       emit();
       try {
         let latest = accept(await getLatest());
-        let passphrase;
         for (let attempt = 0; attempt <= 3; attempt++) {
           const merged = mergeEvents(original.events, draft, latest.events);
           if (equalEvents(merged, latest.events)) {
@@ -292,21 +287,14 @@
           if (attempt === 3) throw new SyncError("busy", "El calendario cambió varias veces durante el guardado. No se confirmó tu cambio; conservá el texto y reintentá cuando terminen los otros cambios.");
           const body = JSON.stringify({ version: 1, language: "es", revision: latest.revision, events: merged });
           if (new TextEncoder().encode(body).length > 1024 * 1024) throw new SyncError("http", "La copia supera el límite compartido de 1 MiB. Reducí las notas o la cantidad de planes antes de reintentar.", { status: 413 });
-          if (passphrase === undefined) {
-            passphrase = await options.getPassphrase?.();
-            if (typeof passphrase !== "string" || !passphrase) throw new SyncError("cancelled", "Guardado cancelado: no se envió ningún cambio. Tu texto o copia se conserva para reintentar.");
-          }
-          const response = await request("PUT", body, passphrase);
+          const response = await request("PUT", body);
           if (response.status === 409) {
             const current = validateSnapshot(response.data?.current);
             if (current.revision <= latest.revision) throw new SyncError("response", "El servidor no devolvió una revisión más reciente para resolver el conflicto. Se conservó tu trabajo; actualizá y reintentá.");
             latest = accept(current);
             continue;
           }
-          if (!response.ok) {
-            if (response.status === 401) options.onUnauthorized?.();
-            throw httpError(response);
-          }
+          if (!response.ok) throw httpError(response);
           const confirmed = validateSnapshot(response.data);
           if (confirmed.revision <= latest.revision || !equalEvents(confirmed.events, merged)) {
             throw new SyncError("response", "El servidor no confirmó los planes enviados. Conservá tu texto y reintentá sin crear otro plan.");

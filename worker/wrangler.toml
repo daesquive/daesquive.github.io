@@ -2,10 +2,6 @@ name = "iberia-trip-agenda"
 main = "src/worker.js"
 compatibility_date = "2026-10-29"
 
-[[services]]
-binding = "FAMILY_AUTH"
-service = "atlas-family-chat"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "iberia-trip-agenda"
