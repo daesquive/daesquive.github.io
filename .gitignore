@@ -1,0 +1,8 @@
+# Private browser backups and secrets must not be published.
+*-backup*.json
+*-copia*.json
+*.ics
+memory.md
+atlas-memory.json
+.env*
+.dev.vars*

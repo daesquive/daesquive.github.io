@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#153f3d">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Nuestro noviembre ibérico | Viaje en familia</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23193f3c'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='40' fill='%23e8c995'%3E11%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="data.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="eyebrow">DIARIO DE VIAJE EN FAMILIA / 2026</div>
+    <div class="hero-row">
+      <div><h1>Nuestro noviembre ibérico<span>España y Portugal, a nuestro ritmo.</span></h1>
+      <p>3–19 de noviembre · Hoteles, aventuras en autocaravana y un cierre en Madrid</p></div>
+      <div class="trip-stamp">17<span>DÍAS DE VIAJE</span></div>
+    </div>
+    <nav class="toolbar" aria-label="Acciones del calendario">
+      <button id="add-event" class="primary">+ Agregar un plan</button>
+      <button id="export-json">Guardar copia de seguridad</button>
+      <button id="import-json">Importar copia</button>
+      <button id="export-ics">Exportar al calendario del teléfono</button>
+      <button id="print">Imprimir itinerario</button>
+      <input id="import-file" type="file" accept=".json,application/json" hidden>
+    </nav>
+  </header>
+
+  <main>
+    <div id="storage-warning" class="notice error" role="alert" hidden></div>
+    <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+    <section class="summary" aria-label="Fechas originales del viaje; editá cada plan en el calendario">
+      <div><span class="eyebrow">VUELO DE IDA / IB0244</span><strong>3 nov., 17:25 → 4 nov., 10:15</strong><small>San José → Madrid · hora local de cada aeropuerto</small></div>
+      <div><span class="eyebrow">AUTOCARAVANA</span><strong>4–14 de noviembre</strong><small>Retiro y devolución en Alcalá de Henares · antes de las 16:00 del día 14</small></div>
+      <div><span class="eyebrow">CIERRE EN MADRID</span><strong>14–19 de noviembre</strong><small>Libere Madrid Palacio Real · devolución del carro el día de salida: 08:00</small></div>
+    </section>
+
+    <section class="panel route-panel" aria-labelledby="route-title">
+      <div class="section-heading"><div><span class="eyebrow">EL CAMINO POR RECORRER</span><h2 id="route-title">Una península. Un poco de aventura.</h2></div><button id="toggle-map">Cargar mapa en línea</button></div>
+      <div class="route-layout">
+        <div>
+          <div id="route-map" class="route-map" aria-label="Mapa esquemático interactivo de la ruta"></div>
+          <div id="street-map" hidden></div>
+          <p class="caption">Los puntos del centro de cada ciudad y las líneas rectas son aproximados: no son indicaciones por carretera ni rutas verificadas para autocaravanas. El esquema funciona sin internet. El mapa en línea opcional usa Leaflet/unpkg y OpenStreetMap; esos servicios reciben las solicitudes de conexión.</p>
+        </div>
+        <div><div id="route-stops" class="route-stops"></div><p id="route-detail" class="route-detail"></p><a id="directions" class="text-link" target="_blank" rel="noopener noreferrer">Ver indicaciones para conducir ↗</a></div>
+      </div>
+    </section>
+
+    <div class="planner-layout">
+      <section class="panel calendar-panel" aria-labelledby="calendar-title">
+        <div class="section-heading"><div><span class="eyebrow">HAGAMOS ESPACIO PARA LOS RECUERDOS</span><h2 id="calendar-title">Noviembre de 2026</h2></div><button id="view-toggle" aria-pressed="false">Ver agenda</button></div>
+        <div class="legend" aria-label="Categorías de planes"><span data-type="drive">Traslados</span><span data-type="stay">Alojamiento</span><span data-type="activity">Paseos</span><span data-type="meal">Comidas</span><span data-type="flight">Vuelos</span><span data-type="reminder">Recordatorios</span></div>
+        <div id="month-view"><div class="weekdays" aria-hidden="true"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div><div id="calendar" class="calendar" aria-label="Calendario de noviembre"></div></div>
+        <div id="agenda" hidden></div>
+        <p class="caption">Cada hora corresponde al lugar del plan, no al dispositivo. Portugal tiene una hora menos que España y Gibraltar; Costa Rica tiene siete horas menos que España en noviembre.</p>
+      </section>
+      <aside class="panel day-panel" aria-labelledby="day-title">
+        <div class="eyebrow">EL DÍA, EN DETALLE</div>
+        <h2 id="day-title"></h2>
+        <p id="day-subtitle" class="muted"></p>
+        <button id="add-day" class="primary">+ Agregar a este día</button>
+        <div id="day-events"></div>
+      </aside>
+    </div>
+
+    <section class="panel practical" aria-labelledby="practical-title">
+      <div><span class="eyebrow">PARA VIAJAR CON MENOS PENDIENTES</span><h2 id="practical-title">Detalles pendientes y recordatorios</h2>
+      <ul>
+        <li>Confirmar la hora de retiro de la autocaravana, el permiso para Portugal, la duración de la entrega y los traslados a Alcalá de Henares.</li>
+        <li>Confirmar las entradas a la Alhambra por separado del pase del tren, incluida la hora de acceso a los Palacios Nazaríes, si corresponde.</li>
+        <li>El 14 de noviembre tiene una agenda ajustada: almuerzo en Toledo → Madrid → devolución de autocaravana → Avis T1 → apartamento → cena a las 21:00.</li>
+        <li>Plataforma está en Rio de Mouro: prever el traslado desde Lisboa. La cena del día 17 a las 20:00 será después del atardecer.</li>
+        <li>Confirmar reservas de campings, alojamiento en Granada, puntos de encuentro y número de vuelo y terminal de regreso.</li>
+      </ul></div>
+      <div class="reminder-box"><h3>Recordatorios que viajan con ustedes</h3><p>Configurá un aviso anticipado en cada plan. Mientras esta página esté abierta, los avisos aparecerán aquí. Exportá al calendario del teléfono para recibir alertas con la página cerrada.</p>
+      <div id="due-reminders" aria-live="polite">No hay recordatorios para este momento.</div>
+      <p class="caption">Se guarda solo en este navegador y perfil. No hay cuenta, sincronización automática ni copia en la nube. Guardá una copia JSON antes de cambiar de dispositivo o borrar datos del navegador. Los mapas en línea y las indicaciones necesitan internet.</p></div>
+    </section>
+    <section id="print-itinerary" aria-label="Itinerario para imprimir"></section>
+  </main>
+  <footer>Para disfrutar el camino, sin prisas. · Noviembre de 2026 · Atlas</footer>
+
+  <dialog id="event-dialog" aria-labelledby="editor-title">
+    <form id="event-form">
+      <div class="section-heading"><h2 id="editor-title">Agregar un plan</h2><button type="button" id="close-dialog" aria-label="Cerrar editor">✕</button></div>
+      <input type="hidden" name="id">
+      <label>¿Cuál es el plan?<input name="title" required maxlength="200" placeholder="Un lugar, una comida, una pequeña aventura..."></label>
+      <div class="form-grid">
+        <label>Fecha<input name="date" type="date" min="2026-11-01" max="2026-11-30" required></label>
+        <label>Hora (opcional)<input name="time" type="time"></label>
+        <label>Fecha final (inclusive)<input name="endDate" type="date" min="2026-11-01" max="2026-11-30" required></label>
+        <label>Hora final (opcional)<input name="endTime" type="time"></label>
+        <label>Zona horaria local<select name="zone"><option value="Europe/Madrid">España / Madrid</option><option value="Europe/Lisbon">Portugal / Lisboa</option><option value="Europe/Gibraltar">Gibraltar</option><option value="America/Costa_Rica">Costa Rica</option></select></label>
+        <label>Categoría<select name="type"><option value="activity">Paseos / compras</option><option value="drive">Conducción / traslados</option><option value="stay">Hotel / autocaravana</option><option value="meal">Comida / restaurante</option><option value="flight">Vuelo</option><option value="reminder">Recordatorio / tareas</option></select></label>
+        <label>Estado de la reserva<select name="status"><option value="planned">Planeado</option><option value="reserved">Reservado</option><option value="pending">Detalles pendientes</option></select></label>
+        <label>Tipo de alojamiento<select name="stay"><option value="">No es un alojamiento</option><option value="hotel">Hotel / apartamento</option><option value="rv">Autocaravana / camping</option></select></label>
+        <label>Parada de la ruta<select name="stop"></select></label>
+        <label>Aviso anticipado<select name="reminder"><option value="-1">Sin recordatorio</option><option value="0">A la hora del plan</option><option value="30">30 minutos antes</option><option value="60">1 hora antes</option><option value="120">2 horas antes</option><option value="1440">1 día antes</option></select></label>
+      </div>
+      <p class="caption">Para alojamientos, la fecha final es la última noche; agregá la salida en otro plan si hace falta. Los planes sin hora se exportan como eventos de todo el día; sus avisos usan las 09:00 locales.</p>
+      <label>Lugar / dirección<input name="location" maxlength="500" placeholder="Restaurante, hotel, camping o punto de encuentro"></label>
+      <label>Enlace de reserva o información (opcional)<input name="url" type="url" maxlength="2000" placeholder="https://..."></label>
+      <label>Notas / lista de tareas<textarea name="notes" rows="4" maxlength="5000" placeholder="Una tarea por línea. No incluyás códigos de reserva ni datos sensibles."></textarea></label>
+      <p id="form-error" class="error" role="alert"></p>
+      <div class="editor-actions"><button type="button" id="delete-event" class="danger">Eliminar plan</button><button type="submit" class="primary">Guardar plan</button></div>
+    </form>
+  </dialog>
+  <noscript><p class="notice error">Activá JavaScript para ver y editar el calendario. La aplicación no envía el itinerario a ningún servidor.</p></noscript>
+</body>
+</html>
