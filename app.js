@@ -405,12 +405,20 @@
       leafletMap = L.map("street-map", { zoomControl: false }).setView([38.7, -6.2], 6);
       L.control.zoom({ zoomInTitle: "Acercar", zoomOutTitle: "Alejar" }).addTo(leafletMap);
       const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18, attribution: '&copy; Colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(leafletMap);
+        maxZoom: 18, referrerPolicy: "strict-origin-when-cross-origin",
+        attribution: '&copy; Colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      });
       let tileErrorShown = false;
+      tiles.on("loading", () => {
+        tileErrorShown = false;
+        feedback("Cargando las imágenes del mapa...");
+      });
       tiles.on("tileerror", () => {
-        if (!tileErrorShown) feedback("No se pudieron cargar algunas partes del mapa. El esquema sin conexión y el itinerario siguen disponibles.");
+        if (!tileErrorShown) feedback("No se pudieron cargar algunas imágenes del mapa (posible bloqueo del proveedor). El esquema sin conexión y los enlaces de indicaciones siguen disponibles.");
         tileErrorShown = true;
+      });
+      tiles.on("load", () => {
+        if (!tileErrorShown) feedback("Mapa cargado. Las líneas son esquemáticas, no rutas calculadas por carretera.");
       });
       const coordinates = [...STOPS, STOPS[0]].map(s => [s.lat, s.lon]);
       L.polyline(coordinates, { color: "#b76b3d", dashArray: "5 5" }).addTo(leafletMap);
@@ -421,8 +429,8 @@
         return marker;
       });
       leafletMap.fitBounds(coordinates, { padding: [20, 20] });
+      tiles.addTo(leafletMap);
       button.textContent = "Ocultar mapa en línea";
-      feedback("Mapa cargado. Las líneas son esquemáticas, no rutas calculadas por carretera.");
     } catch (error) {
       if (leafletMap) { leafletMap.remove(); leafletMap = null; markers = []; }
       $("street-map").hidden = true;

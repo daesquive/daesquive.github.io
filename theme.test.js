@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { runInNewContext } = require("node:vm");
+const { createHash } = require("node:crypto");
 const source = readFileSync(join(__dirname, "theme.js"), "utf8");
 const KEY = "atlas-iberia-theme-v1";
 
@@ -74,4 +75,15 @@ test("an invalid saved preference is reported, not overwritten until a mode is c
   assert.equal(page.stored.get(KEY), "broken");
   page.toggle();
   assert.equal(page.stored.get(KEY), "dark");
+});
+
+test("asset URLs change with their content so cached files cannot hide theme or map fixes", () => {
+  const html = readFileSync(join(__dirname, "index.html"), "utf8");
+  for (const asset of ["style.css", "theme.js", "app.js", "data.js"]) {
+    const content = readFileSync(join(__dirname, asset), "utf8").replace(/\r\n/g, "\n");
+    const version = createHash("sha256").update(content).digest("hex").slice(0, 12);
+    const reference = html.match(new RegExp(`(?:src|href)="${asset.replace(".", "\\.")}\\?v=([a-f0-9]+)"`));
+    assert.ok(reference, `${asset} needs a versioned URL`);
+    assert.equal(reference[1], version, `Update the URL version after changing ${asset}`);
+  }
 });

@@ -7,11 +7,11 @@
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow">
   <title>Nuestro noviembre ibérico | Viaje en familia</title>
-  <script src="theme.js"></script>
+  <script src="theme.js?v=cdbfed30f001"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23193f3c'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='40' fill='%23e8c995'%3E11%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script defer src="data.js"></script>
-  <script defer src="app.js"></script>
+  <link rel="stylesheet" href="style.css?v=21eee3132923">
+  <script defer src="data.js?v=7888a45b2bdb"></script>
+  <script defer src="app.js?v=2925e863a632"></script>
 </head>
 <body>
   <header class="hero">
@@ -23,12 +23,10 @@
     </div>
     <nav class="toolbar" aria-label="Acciones del calendario">
       <button id="add-event" class="primary">+ Agregar un plan</button>
-      <button id="export-json">Guardar copia de seguridad</button>
-      <button id="import-json">Importar copia</button>
+      <a id="upload-media" class="upload-link" href="https://1drv.ms/f/c/fafe694743556596/IgA9KqTBdZKlSKBjrcYg3v9LASXY4HA0FkPcImbCksICR-U?e=Pgfhgq" target="_blank" rel="noopener noreferrer" title="Abrir OneDrive en una pestaña nueva">subir photos y Videos</a>
       <button id="export-ics">Exportar al calendario del teléfono</button>
       <button id="print">Imprimir itinerario</button>
       <button id="theme-toggle" aria-label="Cambiar a modo oscuro">Modo oscuro</button>
-      <input id="import-file" type="file" accept=".json,application/json" hidden>
     </nav>
     <p id="theme-status" class="theme-status" role="status" aria-live="polite"></p>
   </header>
@@ -86,7 +84,14 @@
     </section>
     <section id="print-itinerary" aria-label="Itinerario para imprimir"></section>
   </main>
-  <footer>Para disfrutar el camino, sin prisas. · Noviembre de 2026 · Atlas</footer>
+  <footer>
+    <span>Para disfrutar el camino, sin prisas. · Noviembre de 2026 · Atlas</span>
+    <nav class="backup-tools" aria-label="Copias de seguridad">
+      <button id="export-json">Guardar copia de seguridad</button>
+      <button id="import-json">Importar copia</button>
+      <input id="import-file" type="file" accept=".json,application/json" hidden>
+    </nav>
+  </footer>
 
   <dialog id="event-dialog" aria-labelledby="editor-title">
     <form id="event-form">

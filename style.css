@@ -5,9 +5,15 @@
 input,select,textarea,.section-heading>div{min-width:0}
 .planner-layout>*,.route-layout>*{min-width:0}
 .actions{flex-wrap:wrap}
+.toolbar .upload-link{display:inline-flex;align-items:center;justify-content:center;text-align:center;border:1px solid #58736b;border-radius:8px;padding:9px 14px;color:#fff9e9;font-size:13px;font-weight:600;text-decoration:none}
+.toolbar .upload-link:hover{background:#285b56}
+.backup-tools{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
+.backup-tools button{border:0;background:transparent;padding:6px 8px;color:var(--muted);font-size:11px;font-weight:400;text-decoration:underline;text-underline-offset:3px}
+.backup-tools button:hover{color:var(--ink);background:transparent}
 @media screen and (max-width:600px){
   .toolbar{display:grid;grid-template-columns:1fr 1fr}
-  .toolbar button,button,.text-link{min-height:44px}
+  .toolbar button,button,.text-link,.toolbar .upload-link{min-height:44px}
+  .toolbar .upload-link{font-size:12px}
   .text-link{display:inline-flex;align-items:center}
   .section-heading{align-items:flex-start}
   .section-heading>button{flex-shrink:0;max-width:42%}
@@ -68,5 +74,6 @@ input,select,textarea,.section-heading>div{min-width:0}
   :root[data-theme=dark] .leaflet-bar a.leaflet-disabled{color:#728b82}
   :root[data-theme=dark] .leaflet-control-attribution{background:#162a27eb;color:var(--ink)}
   :root[data-theme=dark] .leaflet-control-attribution a,:root[data-theme=dark] .leaflet-popup-content a{color:#f2b187}
+  :root[data-theme=dark] .backup-tools button{background:transparent}
 }
 @media print{.theme-status{display:none!important}}
