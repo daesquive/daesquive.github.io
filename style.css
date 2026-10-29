@@ -7,7 +7,6 @@ input,select,textarea,.section-heading>div{min-width:0}
 .actions{flex-wrap:wrap}
 @media screen and (max-width:600px){
   .toolbar{display:grid;grid-template-columns:1fr 1fr}
-  .toolbar button:last-of-type{grid-column:1/-1}
   .toolbar button,button,.text-link{min-height:44px}
   .text-link{display:inline-flex;align-items:center}
   .section-heading{align-items:flex-start}
@@ -30,3 +29,44 @@ input,select,textarea,.section-heading>div{min-width:0}
   .route-map svg{min-height:180px}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+:root{color-scheme:light}
+.theme-status:empty{display:none}
+.hero .theme-status{font-size:12px;margin:12px 0 0}
+@media screen{
+  :root[data-theme=dark]{color-scheme:dark;--ink:#e0eae4;--paper:#0e1b1b;--muted:#a6b8b2;--line:#3a514c;--accent:#f4ae83;--shadow:0 12px 35px #0003;--drive:#8bd5d0;--stay:#cfb2f3;--activity:#a4d49b;--meal:#f3b38e;--flight:#a1c8ff;--reminder:#e5ca86}
+  :root[data-theme=dark] .hero{background:#102c29}
+  :root[data-theme=dark] button{background:#243a36}
+  :root[data-theme=dark] button:hover{background:#304c44}
+  :root[data-theme=dark] .primary{background:#a2d0b4;color:#112b25;border-color:#a2d0b4}
+  :root[data-theme=dark] .primary:hover{background:#b8e3c9}
+  :root[data-theme=dark] .panel,:root[data-theme=dark] dialog,:root[data-theme=dark] .editor-actions{background:#162a27}
+  :root[data-theme=dark] .day{background:#182b27}
+  :root[data-theme=dark] .day.outside{background:#10201c}
+  :root[data-theme=dark] .day.travel{background:#1b312a}
+  :root[data-theme=dark] .day-number,:root[data-theme=dark] .agenda-day h3 button,:root[data-theme=dark] .more{background:transparent}
+  :root[data-theme=dark] .event-chip{background:#243a34}
+  :root[data-theme=dark] .event-chip:hover{background:#304c44}
+  :root[data-theme=dark] .event-card,:root[data-theme=dark] #due-reminders>div{background:#20332e}
+  :root[data-theme=dark] .badge{background:#30483d}
+  :root[data-theme=dark] .badge.reserved{background:#254432;color:#c1e3ba}
+  :root[data-theme=dark] .badge.pending{background:#4a3b24;color:#f0d7a4}
+  :root[data-theme=dark] .reminder-box{background:#20382f}
+  :root[data-theme=dark] .text-link{color:#f2b187}
+  :root[data-theme=dark] .notice{background:#392f23;border-color:#dfaa70}
+  :root[data-theme=dark] .error,:root[data-theme=dark] .danger{color:#ffb3a5}
+  :root[data-theme=dark] .danger{border-color:#a46b60}
+  :root[data-theme=dark] input,:root[data-theme=dark] select,:root[data-theme=dark] textarea{background:#20332e;border-color:#566d64}
+  :root[data-theme=dark] .route-map{background:#213b33}
+  :root[data-theme=dark] .route-map .water{fill:#173b40}
+  :root[data-theme=dark] .route-map text{fill:var(--ink)}
+  :root[data-theme=dark] .route-map .city circle{fill:#162a27;stroke:var(--ink)}
+  :root[data-theme=dark] .route-map .city.active circle{fill:#88502b}
+  :root[data-theme=dark] .route-map polyline{stroke:#efb17f}
+  :root[data-theme=dark] .route-stops button.active{background:#a2d0b4;color:#112b25}
+  :root[data-theme=dark] .leaflet-container{background:#20332e}
+  :root[data-theme=dark] .leaflet-bar a,:root[data-theme=dark] .leaflet-popup-content-wrapper,:root[data-theme=dark] .leaflet-popup-tip{background:#162a27;color:var(--ink);border-color:var(--line)}
+  :root[data-theme=dark] .leaflet-bar a.leaflet-disabled{color:#728b82}
+  :root[data-theme=dark] .leaflet-control-attribution{background:#162a27eb;color:var(--ink)}
+  :root[data-theme=dark] .leaflet-control-attribution a,:root[data-theme=dark] .leaflet-popup-content a{color:#f2b187}
+}
+@media print{.theme-status{display:none!important}}
