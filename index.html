@@ -9,19 +9,29 @@
   <title>Nuestro noviembre ibérico | Viaje en familia</title>
   <script src="theme.js?v=cdbfed30f001"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23193f3c'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='40' fill='%23e8c995'%3E11%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=fbea371ae6aa">
+  <link rel="stylesheet" href="style.css?v=ad1e3ecfc3fe">
   <script defer src="data.js?v=7888a45b2bdb"></script>
   <script defer src="sync-config.js?v=165528bf87fc"></script>
   <script defer src="sync.js?v=e2eeddf80bf8"></script>
+  <script defer src="weather.js?v=053a23b76b1b"></script>
   <script defer src="app.js?v=6774ba462209"></script>
 </head>
 <body>
   <header class="hero">
     <div class="eyebrow">DIARIO DE VIAJE EN FAMILIA / 2026</div>
     <div class="hero-row">
-      <div><h1>Nuestro noviembre ibérico<span>España y Portugal, a nuestro ritmo.</span></h1>
+      <div class="hero-intro"><h1>Nuestro noviembre ibérico<span>España y Portugal, a nuestro ritmo.</span></h1>
       <p>3–19 de noviembre · Hoteles, aventuras en autocaravana y un cierre en Madrid</p></div>
       <div class="trip-stamp">17<span>DÍAS DE VIAJE</span></div>
+      <section id="weather-panel" class="weather-panel" aria-labelledby="weather-title" data-state="loading">
+        <h2 id="weather-title">Tiempo actual</h2>
+        <table aria-labelledby="weather-title" aria-describedby="weather-status">
+          <thead><tr><th scope="col">Ciudad</th><th scope="col">Temp.</th><th scope="col">Estado</th></tr></thead>
+          <tbody id="weather-rows"><tr><td colspan="3">Cargando el tiempo…</td></tr></tbody>
+        </table>
+        <p id="weather-status" class="weather-status" role="status" aria-live="polite">Consultando las cinco ciudades…</p>
+        <p class="weather-source">Datos: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · Pronóstico y mapa: seleccioná una ciudad.</p>
+      </section>
     </div>
     <nav class="toolbar" aria-label="Acciones del calendario">
       <button id="add-event" class="primary">+ Agregar un plan</button>

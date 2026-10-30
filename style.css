@@ -7,6 +7,20 @@ input,select,textarea,.section-heading>div{min-width:0}
 .actions{flex-wrap:wrap}
 .toolbar .upload-link{display:inline-flex;align-items:center;justify-content:center;text-align:center;border:1px solid #58736b;border-radius:8px;padding:9px 14px;color:#fff9e9;font-size:13px;font-weight:600;text-decoration:none}
 .toolbar .upload-link:hover{background:#285b56}
+.hero-intro{flex:1;min-width:0}
+.weather-panel{flex:0 0 310px;align-self:flex-start;border:1px solid #58736b;border-radius:12px;padding:12px 14px;background:#ffffff0a}
+.weather-panel h2{margin:0 0 8px;font:650 16px/1.3 system-ui,sans-serif}
+.weather-panel table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.weather-panel th,.weather-panel td{padding:5px 5px 5px 0;border-bottom:1px solid #58736b;vertical-align:top}
+.weather-panel thead{color:#e8c995;font-size:11px}
+.weather-panel tbody th{font-weight:600}
+.weather-panel a{color:#fff3d4;text-underline-offset:3px}
+.weather-panel a:hover{color:#e8c995}
+.weather-temperature{white-space:nowrap;font-variant-numeric:tabular-nums}
+.hero .weather-status,.hero .weather-source{margin:8px 0 0;font-size:11px;line-height:1.45}
+.weather-panel[data-state=error] .weather-status,.weather-panel[data-state=stale] .weather-status,.weather-panel[data-state=partial] .weather-status{color:#ffd4b2}
+.weather-panel[data-state=stale] tbody{opacity:.7}
+@media(max-width:850px){.hero-row{flex-wrap:wrap}.hero-intro{flex-basis:calc(100% - 128px)}.weather-panel{flex-basis:100%}}
 .backup-tools{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
 .backup-tools button{border:0;background:transparent;padding:6px 8px;color:var(--muted);font-size:11px;font-weight:400;text-decoration:underline;text-underline-offset:3px}
 .backup-tools button:hover{color:var(--ink);background:transparent}
@@ -86,4 +100,4 @@ button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:wait;opa
   :root[data-theme=dark] .leaflet-control-attribution a,:root[data-theme=dark] .leaflet-popup-content a{color:#f2b187}
   :root[data-theme=dark] .backup-tools button{background:transparent}
 }
-@media print{.theme-status,.sync-bar,#legacy-notice{display:none!important}}
+@media print{.theme-status,.sync-bar,#legacy-notice,.weather-panel{display:none!important}}
